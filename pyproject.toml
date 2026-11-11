@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sim-telemetry"
+version = "0.1.0"
+description = "Real-time telemetry pipeline for a serial-connected driving-simulator rig."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Rutuparn Kulkarni" }]
+requires-python = ">=3.12"
+dependencies = [
+    "pyserial>=3.5",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "websockets>=12",
+]
+
+[project.optional-dependencies]
+parquet = ["pyarrow>=15"]
+dev = ["pytest>=8", "ruff>=0.5", "httpx>=0.27", "pyarrow>=15"]
+
+[project.scripts]
+sim-telemetry = "sim_telemetry.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sim_telemetry"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
