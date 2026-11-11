@@ -22,6 +22,8 @@ class Transport(ABC):
 
     #: Set once the source can never produce more data (e.g. end of a file).
     at_eof: bool = False
+    #: False for replayed data, which can wait for a slow consumer without losing anything.
+    live: bool = True
 
     @abstractmethod
     def read(self, size: int) -> bytes:
@@ -148,6 +150,8 @@ class SimTransport(Transport):
 
 class FileTransport(Transport):
     """Replays a raw capture (e.g. written by ``sim-telemetry simulate --out x.bin``)."""
+
+    live = False
 
     def __init__(self, path: str | Path):
         self._file = open(path, "rb")  # noqa: SIM115 - closed in close()

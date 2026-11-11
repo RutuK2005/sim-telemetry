@@ -41,3 +41,5 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Newer Starlette releases warn that TestClient will move off httpx; harmless for these tests.
+filterwarnings = ["ignore:Using .httpx. with .starlette.testclient:UserWarning"]

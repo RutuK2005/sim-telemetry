@@ -1,4 +1,5 @@
 import csv
+import time
 
 import pandas as pd
 import pytest
@@ -38,13 +39,36 @@ def test_reader_delivers_all_frames_from_file(tmp_path):
     assert reader.error is None
 
 
-def test_reader_drops_oldest_when_queue_is_full(tmp_path):
-    reader = TelemetryReader(FileTransport(write_capture(tmp_path, 100)), maxsize=10)
+class BurstTransport(Transport):
+    """A live source that delivers all its bytes at once, then ends."""
+
+    def __init__(self, data: bytes):
+        self.data = data
+
+    def read(self, size: int) -> bytes:
+        chunk, self.data = self.data[:size], self.data[size:]
+        self.at_eof = not chunk
+        return chunk
+
+
+def test_live_reader_drops_oldest_when_queue_is_full():
+    data = b"".join(SimulatedDevice(seed=0).frames(100))
+    reader = TelemetryReader(BurstTransport(data), maxsize=10)
     reader.start()
     reader.join(timeout=5)  # nobody consumes, so the queue overflows
     frames = reader.drain()
     assert [f.seq for f in frames] == list(range(90, 100))  # newest frames survive
     assert reader.queue_overflows == 90
+
+
+def test_file_reader_applies_backpressure_instead_of_dropping(tmp_path):
+    reader = TelemetryReader(FileTransport(write_capture(tmp_path, 100)), maxsize=10)
+    reader.start()
+    time.sleep(0.2)  # give the reader time to fill the queue
+    assert reader.queue.qsize() == 10 and reader.is_alive()
+    frames = list(reader.frames())
+    assert [f.seq for f in frames] == list(range(100))
+    assert reader.queue_overflows == 0
 
 
 def test_reader_stop_ends_live_source():

@@ -21,8 +21,10 @@ from .transport import Transport
 class TelemetryReader(threading.Thread):
     """Reads bytes from a transport, decodes frames and puts them on ``self.queue``.
 
-    When the queue is full the *oldest* frame is discarded: for live telemetry
-    the newest value is the most useful one, and the reader must never block.
+    When the queue is full and the source is live, the *oldest* frame is
+    discarded: the newest value is the most useful one, and a reader that
+    blocks lets the serial port's own buffer overflow instead. For replayed
+    files nothing is lost by waiting, so the reader blocks (backpressure).
     """
 
     def __init__(self, transport: Transport, maxsize: int = 1000, chunk_size: int = 256):
@@ -52,6 +54,14 @@ class TelemetryReader(threading.Thread):
             self.error = exc
 
     def _put(self, frame: Frame) -> None:
+        if not self.transport.live:
+            while not self._stop_event.is_set():
+                try:
+                    self.queue.put(frame, timeout=0.1)
+                    return
+                except queue.Full:
+                    continue
+            return
         try:
             self.queue.put_nowait(frame)
         except queue.Full:
@@ -67,9 +77,13 @@ class TelemetryReader(threading.Thread):
         if self.is_alive():
             self.join(timeout)
 
-    def frames(self, poll: float = 0.1) -> Iterator[Frame]:
-        """Yield frames as they arrive until the reader has stopped and the queue is empty."""
-        while True:
+    def frames(self, poll: float = 0.1, until: float | None = None) -> Iterator[Frame]:
+        """Yield frames as they arrive.
+
+        Stops when the reader has finished and the queue is empty, or when
+        ``time.monotonic()`` passes ``until`` (if given).
+        """
+        while until is None or time.monotonic() < until:
             try:
                 yield self.queue.get(timeout=poll)
             except queue.Empty:

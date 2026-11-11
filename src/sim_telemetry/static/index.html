@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sim-telemetry</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+          integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
+    :root { --bg: #11151c; --panel: #1b212b; --text: #e6e9ef; --muted: #8a94a6;
+            --live: #3ecf8e; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+           font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { display: flex; justify-content: space-between; align-items: baseline; }
+    h1 { font-size: 1.2rem; margin: 0 0 12px; }
+    #status { color: var(--muted); font-size: 0.9rem; }
+    #status.live { color: var(--live); }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+             gap: 8px; margin-bottom: 12px; }
+    .tile { background: var(--panel); border-radius: 8px; padding: 10px 12px; }
+    .tile .label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; }
+    .tile .value { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+    .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 8px; }
+    .chart { background: var(--panel); border-radius: 8px; padding: 8px; height: 260px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>sim-telemetry live</h1>
+    <span id="status">connecting...</span>
+  </header>
+
+  <section class="tiles">
+    <div class="tile"><div class="label">Speed km/h</div><div class="value" id="speed">-</div></div>
+    <div class="tile"><div class="label">Gear</div><div class="value" id="gear">-</div></div>
+    <div class="tile"><div class="label">RPM</div><div class="value" id="rpm">-</div></div>
+    <div class="tile"><div class="label">Steering deg</div><div class="value" id="steer">-</div></div>
+    <div class="tile"><div class="label">Throttle / Brake %</div><div class="value" id="pedals">-</div></div>
+  </section>
+
+  <section class="tiles">
+    <div class="tile"><div class="label">Packet rate Hz</div><div class="value" id="rate">-</div></div>
+    <div class="tile"><div class="label">Drop rate (5 s)</div><div class="value" id="drops">-</div></div>
+    <div class="tile"><div class="label">CRC errors</div><div class="value" id="crc">-</div></div>
+    <div class="tile"><div class="label">Latency mean / p95 ms</div><div class="value" id="latency">-</div></div>
+    <div class="tile"><div class="label">Frames received</div><div class="value" id="total">-</div></div>
+  </section>
+
+  <section class="charts">
+    <div class="chart"><canvas id="speedChart"></canvas></div>
+    <div class="chart"><canvas id="pedalChart"></canvas></div>
+  </section>
+
+  <script>
+    const MAX_POINTS = 500;  // 10 s of history at 50 Hz
+    Chart.defaults.color = "#8a94a6";
+    Chart.defaults.borderColor = "#2a3240";
+
+    function lineChart(canvasId, datasets, yOptions) {
+      return new Chart(document.getElementById(canvasId), {
+        type: "line",
+        data: { labels: [], datasets: datasets.map(([label, color]) => ({
+          label, data: [], borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: 0.2 })) },
+        options: { animation: false, maintainAspectRatio: false,
+                   scales: { x: { ticks: { maxTicksLimit: 6 } }, y: yOptions } },
+      });
+    }
+
+    const speedChart = lineChart("speedChart",
+      [["speed km/h", "#4ea1ff"], ["steering deg", "#f5b94a"]], {});
+    const pedalChart = lineChart("pedalChart",
+      [["throttle %", "#3ecf8e"], ["brake %", "#ff5c5c"]], { min: 0, max: 100 });
+
+    function pushPoints(chart, label, values) {
+      chart.data.labels.push(label);
+      values.forEach((v, i) => chart.data.datasets[i].data.push(v));
+      if (chart.data.labels.length > MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets.forEach((d) => d.data.shift());
+      }
+    }
+
+    const $ = (id) => document.getElementById(id);
+
+    function render(msg) {
+      for (const s of msg.samples) {
+        const t = (s.device_ms / 1000).toFixed(1);
+        pushPoints(speedChart, t, [s.speed_kmh, s.steering_deg]);
+        pushPoints(pedalChart, t, [s.throttle_pct, s.brake_pct]);
+      }
+      const last = msg.samples[msg.samples.length - 1];
+      if (last) {
+        $("speed").textContent = last.speed_kmh.toFixed(0);
+        $("gear").textContent = last.gear === 0 ? "N" : last.gear === -1 ? "R" : last.gear;
+        $("rpm").textContent = last.rpm;
+        $("steer").textContent = last.steering_deg.toFixed(1);
+        $("pedals").textContent = `${last.throttle_pct.toFixed(0)} / ${last.brake_pct.toFixed(0)}`;
+        speedChart.update("none");
+        pedalChart.update("none");
+      }
+      const st = msg.stats, link = msg.link;
+      $("rate").textContent = st.packet_rate_hz.toFixed(1);
+      $("drops").textContent = (st.drop_rate * 100).toFixed(2) + " %";
+      $("crc").textContent = link.crc_errors;
+      $("latency").textContent = `${st.latency_ms_mean.toFixed(1)} / ${st.latency_ms_p95.toFixed(1)}`;
+      $("total").textContent = st.total_frames;
+    }
+
+    function connect() {
+      const scheme = location.protocol === "https:" ? "wss" : "ws";
+      const ws = new WebSocket(`${scheme}://${location.host}/ws`);
+      ws.onopen = () => { $("status").textContent = "live"; $("status").className = "live"; };
+      ws.onmessage = (event) => render(JSON.parse(event.data));
+      ws.onclose = () => {
+        $("status").textContent = "disconnected - retrying...";
+        $("status").className = "";
+        setTimeout(connect, 1000);
+      };
+    }
+    connect();
+  </script>
+</body>
+</html>
