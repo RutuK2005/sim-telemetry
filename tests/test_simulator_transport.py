@@ -24,7 +24,7 @@ def read_frames(transport, wanted: int, max_seconds: float = 3.0) -> list:
     deadline = time.monotonic() + max_seconds
     while len(frames) < wanted and time.monotonic() < deadline:
         frames.extend(parser.feed(transport.read(256)))
-    return frames
+    return frames[:wanted]
 
 
 def test_speed_profile_is_slower_in_corners():
