@@ -55,3 +55,30 @@ def test_seq_and_timestamp_wrap():
     frame = encode_frame(65536 + 5, 2**32 + 7, SAMPLE)
     assert int.from_bytes(frame[3:5], "little") == 5
     assert int.from_bytes(frame[5:9], "little") == 7
+
+
+def test_firmware_byte_layout_matches_python():
+    """Build a frame byte-by-byte the way firmware/*.ino does and compare."""
+
+    def crc16_bitwise(data: bytes) -> int:  # same loop as the Arduino sketch
+        crc = 0xFFFF
+        for byte in data:
+            crc ^= byte << 8
+            for _ in range(8):
+                crc = ((crc << 1) ^ 0x1021) if crc & 0x8000 else (crc << 1)
+                crc &= 0xFFFF
+        return crc
+
+    frame = bytearray(20)
+    frame[0:2] = b"\xaa\x55"
+    frame[2] = 9
+    frame[3:5] = (7).to_bytes(2, "little")
+    frame[5:9] = (123456).to_bytes(4, "little")
+    frame[9:11] = (-1234).to_bytes(2, "little", signed=True)
+    frame[11], frame[12] = 87, 0
+    frame[13] = 4
+    frame[14:16] = (14237).to_bytes(2, "little")
+    frame[16:18] = (6150).to_bytes(2, "little")
+    frame[18:20] = crc16_bitwise(bytes(frame[2:18])).to_bytes(2, "little")
+
+    assert bytes(frame) == encode_frame(7, 123456, SAMPLE)
