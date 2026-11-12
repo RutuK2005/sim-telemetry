@@ -1,5 +1,9 @@
 # sim-telemetry
 
+▶️ **[Watch the driving-simulator rig in action (YouTube)](https://www.youtube.com/watch?v=30tbnoA9A_E)**
+
+[![SIH 2025 driving-simulator rig](docs/images/rig-wheel-and-column.jpg)](https://www.youtube.com/watch?v=30tbnoA9A_E)
+
 A real-time telemetry pipeline for a serial-connected driving-simulator rig. A microcontroller
 (or the built-in simulator) streams compact binary frames - steering, throttle, brake, gear,
 speed, rpm - over a serial line; the Python host decodes them in a background thread, survives
@@ -12,9 +16,11 @@ is a cleaned-up, standalone rebuild of that idea, not the hackathon code itself.
 
 ## The hardware
 
-![SIH 2025 rig: steering wheel, motor and electronics, pedal box](docs/images/rig-build-photos.png)
+| | |
+|---|---|
+| ![3D-printed steering wheel](docs/images/rig-steering-wheel.jpg) | ![Pedal box](docs/images/rig-pedals.jpg) |
 
-Our team's rig for Smart India Hackathon 2025 (internal round winner): an Arduino Leonardo
+Our team's working rig for Smart India Hackathon 2025 (internal round winner): an Arduino Leonardo
 reading a 600 PPR encoder on the steering, three potentiometer pedals and limit-switch paddle
 shifters, with motor force feedback, driving the CARLA simulator. Built for about ₹6,700.
 Components, data flow, photos and the demo video are in [docs/hardware.md](docs/hardware.md).

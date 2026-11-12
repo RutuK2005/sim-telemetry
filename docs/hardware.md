@@ -1,10 +1,10 @@
 # The hardware: SIH 2025 driving simulator
 
-This is the rig that `sim-telemetry` grew out of. Our team (X86, DY Patil International University) built it for Smart India Hackathon 2025, problem statement SIH25119 (Student Innovation, theme: Smart Vehicles, hardware category), and it won the internal round.
+▶️ **Demo video:** https://www.youtube.com/watch?v=30tbnoA9A_E
 
-Demo video: https://www.youtube.com/watch?v=30tbnoA9A_E
+This is the rig that `sim-telemetry` grew out of. Our team (X86, DY Patil International University) built it for Smart India Hackathon 2025, problem statement SIH25119 (Student Innovation, theme: Smart Vehicles, hardware category), and it won the internal round. The rig is working: wheel, force feedback, pedals and paddle shifters all drive the simulator, as shown in the video.
 
-![Build photos: steering wheel and mount, motor and electronics, pedal box](images/rig-build-photos.png)
+![Steering wheel and column on the desk, wired to the Arduino](images/rig-wheel-and-column.jpg)
 
 ## The idea
 
@@ -12,7 +12,16 @@ Training self-driving models needs a lot of labelled driving data, and collectin
 
 We built a low-cost simulator with a steering wheel, three pedals and paddle shifters, connected to the CARLA simulator. Every session produces logged, labelled data. The same rig could also be used for driving tests: a learner drives a set route and gets a detailed report instead of a pass/fail from an examiner.
 
-Most of the structural parts are 3D printed.
+The wheel, column frame, gears, paddles and pedal box are 3D printed.
+
+## Photos
+
+| | |
+|---|---|
+| ![3D-printed steering wheel with paddle shifters](images/rig-steering-wheel.jpg) | ![Top view: wheel, 1:4 gear stage, motor and Arduino Leonardo](images/rig-top-view.jpg) |
+| 3D-printed wheel with paddle shifters | Column from above: gear stage to the encoder, force-feedback motor, Leonardo |
+| ![Paddle shifter mechanism and encoder gear](images/rig-paddle-shifters.jpg) | ![Pedal box with potentiometers and return springs](images/rig-pedals.jpg) |
+| Paddle shifter levers on limit switches, and the gear driving the encoder | Pedal box: each pedal turns a potentiometer through a gear, springs return it |
 
 ## Components
 
@@ -50,7 +59,7 @@ From our SIH comparison slide:
 | Data logging | No | Yes |
 | Custom wheel / real car buttons (indicators etc.) | No | Yes |
 
-The G29 is far more polished. Ours was a working prototype, and the structure was still being improved when we presented it.
+The G29 is a polished retail product with years of refinement. Ours is a working, hand-built prototype at about a fifth of the price.
 
 ## How this repo relates to the rig
 
