@@ -1,5 +1,7 @@
 # sim-telemetry
 
+[![CI](https://github.com/RutuK2005/sim-telemetry/actions/workflows/ci.yml/badge.svg)](https://github.com/RutuK2005/sim-telemetry/actions/workflows/ci.yml) ![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 ▶️ **[Watch the driving-simulator rig in action (YouTube)](https://www.youtube.com/watch?v=30tbnoA9A_E)**
 
 [![SIH 2025 driving-simulator rig](docs/images/rig-wheel-and-column.jpg)](https://www.youtube.com/watch?v=30tbnoA9A_E)
