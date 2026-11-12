@@ -1,5 +1,9 @@
 # sim-telemetry
 
+▶️ **[Watch the driving-simulator rig in action (YouTube)](https://www.youtube.com/watch?v=30tbnoA9A_E)**
+
+[![SIH 2025 driving-simulator rig](docs/images/rig-wheel-and-column.jpg)](https://www.youtube.com/watch?v=30tbnoA9A_E)
+
 A real-time telemetry pipeline for a serial-connected driving-simulator rig. A microcontroller
 (or the built-in simulator) streams compact binary frames - steering, throttle, brake, gear,
 speed, rpm - over a serial line; the Python host decodes them in a background thread, survives
@@ -9,6 +13,17 @@ simulated car laps a simple track and produces physically consistent data, eithe
 or through a real pyserial `loop://` port. The project grew out of my Smart India Hackathon 2025
 driving-simulator work, where the rig's hardware streamed telemetry to Python via PySerial; this
 is a cleaned-up, standalone rebuild of that idea, not the hackathon code itself.
+
+## The hardware
+
+| | |
+|---|---|
+| ![3D-printed steering wheel](docs/images/rig-steering-wheel.jpg) | ![Pedal box](docs/images/rig-pedals.jpg) |
+
+Our team's working rig for Smart India Hackathon 2025 (internal round winner): an Arduino Leonardo
+reading a 600 PPR encoder on the steering, three potentiometer pedals and limit-switch paddle
+shifters, with motor force feedback, driving the CARLA simulator. Built for about ₹6,700.
+Components, data flow, photos and the demo video are in [docs/hardware.md](docs/hardware.md).
 
 ## Architecture
 
@@ -153,6 +168,7 @@ src/sim_telemetry/
   static/index.html  single-page dashboard (Chart.js 4.4.1 from cdnjs)
   cli.py         argparse CLI
 firmware/        reference Arduino sketch emitting the same frames
+docs/hardware.md the SIH rig: components, data flow, photos
 scripts/         parser benchmark
 tests/           pytest suite
 docs/walkthrough.md  study guide
@@ -170,14 +186,16 @@ CI runs the same commands on Ubuntu with Python 3.12 and 3.13.
 
 ## Reference firmware
 
-`firmware/sim_telemetry_reference/sim_telemetry_reference.ino` is a short Arduino sketch that
-reads steering/pedal potentiometers and paddle shifters and emits the same 20-byte frame at
-50 Hz. It is reference code for reading alongside `protocol.py`: pin numbers and calibration are
-placeholders, and it has not been flashed to hardware as part of this repository. A unit test
+`firmware/sim_telemetry_reference/sim_telemetry_reference.ino` is a short Arduino Leonardo
+sketch for the rig's sensor set: it counts the steering encoder on an interrupt, reads the
+pedal potentiometers and paddle-shifter switches, and emits the same 20-byte frame at 50 Hz.
+It is reference code for reading alongside `protocol.py`, not the firmware we ran at SIH: pin
+numbers and calibration are examples, and it has not been flashed to hardware. A unit test
 rebuilds a frame byte-by-byte the way the sketch does and checks it matches `encode_frame`.
 
 ## Next steps
 
+- Payload v2 with a clutch field (the rig has a clutch pedal; the v1 frame doesn't carry it).
 - Device-to-host commands (e.g. force-feedback strength) using the same framing in reverse.
 - A Parquet writer that flushes row groups periodically, for long sessions.
 - Lap detection and lap-by-lap comparison in `analyze` (needs a position or lap-beacon field).

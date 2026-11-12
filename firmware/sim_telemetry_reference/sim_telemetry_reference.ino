@@ -1,9 +1,9 @@
 // sim_telemetry_reference.ino
 //
-// REFERENCE FIRMWARE: shows how a microcontroller on the rig would emit the
-// same frame format the Python host expects. It is a sketch to read alongside
-// protocol.py, not tested production firmware. Pin assignments and sensor
-// scaling are placeholders for whatever hardware the rig actually uses.
+// REFERENCE FIRMWARE for an Arduino Leonardo on the SIH 2025 rig's sensor set
+// (see docs/hardware.md). Shows how the rig's inputs could be streamed in the
+// frame format the Python host expects. It is not the firmware used at SIH and
+// has not been flashed to the rig; pin numbers and calibration are examples.
 //
 // Frame (little-endian), 20 bytes:
 //   0xAA 0x55 | len u8 | seq u16 | timestamp_ms u32 | payload (9) | crc16 u16
@@ -14,15 +14,32 @@
 const uint8_t PAYLOAD_LEN = 9;
 const unsigned long PERIOD_MS = 20;  // 50 Hz
 
-const int PIN_STEERING = A0;  // potentiometer on the steering column
-const int PIN_THROTTLE = A1;  // pedal potentiometers
-const int PIN_BRAKE = A2;
-const int PIN_GEAR_UP = 2;    // paddle shifters, active low
-const int PIN_GEAR_DOWN = 3;
+// Steering: 600 PPR quadrature encoder, geared 1:4 to the wheel.
+// Counting one edge of channel A gives 600 counts per encoder turn,
+// so 2400 counts per wheel turn = 0.15 degree per count.
+const int PIN_ENC_A = 2;  // Leonardo interrupt-capable pins: 0, 1, 2, 3, 7
+const int PIN_ENC_B = 3;
+const long COUNTS_PER_WHEEL_REV = 2400;
 
+// Pedals: 20k potentiometers.
+const int PIN_THROTTLE = A0;
+const int PIN_BRAKE = A1;
+const int PIN_CLUTCH = A2;  // wired on the rig; the v1 frame has no clutch field yet
+
+// Paddle shifters: limit switches, active low.
+const int PIN_GEAR_UP = 4;
+const int PIN_GEAR_DOWN = 5;
+
+volatile long encoderCount = 0;  // 0 = wheel centred at power-up
 uint16_t seq = 0;
 int8_t gear = 1;
 unsigned long nextFrameAt = 0;
+
+void onEncoderA() {
+  // On a rising edge of A, B tells us the direction.
+  if (digitalRead(PIN_ENC_B) == HIGH) encoderCount--;
+  else encoderCount++;
+}
 
 uint16_t crc16(const uint8_t *data, size_t len) {
   uint16_t crc = 0xFFFF;
@@ -47,10 +64,19 @@ void readShifters() {
   lastDown = down;
 }
 
+uint8_t pedalPercent(int pin) {
+  // Placeholder calibration: full ADC range = 0-100 %. Real pedals need
+  // per-pedal min/max captured during a calibration step.
+  return map(analogRead(pin), 0, 1023, 0, 100);
+}
+
 void setup() {
   Serial.begin(115200);
+  pinMode(PIN_ENC_A, INPUT_PULLUP);
+  pinMode(PIN_ENC_B, INPUT_PULLUP);
   pinMode(PIN_GEAR_UP, INPUT_PULLUP);
   pinMode(PIN_GEAR_DOWN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_ENC_A), onEncoderA, RISING);
 }
 
 void loop() {
@@ -59,12 +85,16 @@ void loop() {
   if (now < nextFrameAt) return;
   nextFrameAt = now + PERIOD_MS;
 
-  // Map 10-bit ADC readings to engineering units (placeholder calibration).
-  int16_t steering = map(analogRead(PIN_STEERING), 0, 1023, -4500, 4500);  // +-450.0 deg
-  uint8_t throttle = map(analogRead(PIN_THROTTLE), 0, 1023, 0, 100);
-  uint8_t brake = map(analogRead(PIN_BRAKE), 0, 1023, 0, 100);
-  uint16_t speed = 0;  // speed and rpm come from the PC game on a real rig;
-  uint16_t rpm = 0;    // left at zero here to keep the sketch self-contained
+  noInterrupts();
+  long count = encoderCount;
+  interrupts();
+
+  // counts -> tenths of a degree: count * 3600 / 2400
+  int16_t steering = (int16_t)constrain(count * 3600L / COUNTS_PER_WHEEL_REV, -32768L, 32767L);
+  uint8_t throttle = pedalPercent(PIN_THROTTLE);
+  uint8_t brake = pedalPercent(PIN_BRAKE);
+  uint16_t speed = 0;  // speed and rpm come from the simulator on the PC,
+  uint16_t rpm = 0;    // so the rig itself sends zero
 
   uint8_t frame[20];
   frame[0] = 0xAA;
